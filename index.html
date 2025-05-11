@@ -77,7 +77,7 @@
           provider = new ethers.providers.Web3Provider(window.ethereum);
           await window.ethereum.request({ method: 'eth_requestAccounts' });
         } else {
-          const walletConnectProvider = new WalletConnectProvider.default({ rpc: { [chainId]: rpc } });
+          const walletConnectProvider = new WalletConnectProvider.default({ disableInjectedProvider: true, rpc: { [chainId]: rpc } });{ rpc: { [chainId]: rpc } });
           await walletConnectProvider.enable();
           provider = new ethers.providers.Web3Provider(walletConnectProvider);
         }
@@ -91,6 +91,10 @@
         token = new ethers.Contract(tokenAddr, tokenAbi, signer);
 
         document.getElementById('wallet-section').classList.add('hidden');
+        // Disable connect button after connecting
+        const connectBtnEl = document.getElementById('connect-btn');
+        connectBtnEl.disabled = true;
+        connectBtnEl.innerText = 'Connected';
         document.getElementById('app').classList.remove('hidden');
         updateProgress();
       } catch {
