@@ -13,7 +13,7 @@
     <!-- Header -->
     <div class="bg-purple-600 py-6 px-8 text-center">
       <h1 class="text-4xl font-extrabold text-white tracking-wide">Memepad</h1>
-      <p class="mt-2 text-purple-200">Your Next Big Meme Launchpad</p>
+      <!-- Removed tagline -->
     </div>
     <div class="p-8 space-y-6">
       <!-- Progress -->
@@ -28,7 +28,9 @@
       </div>
       <!-- Wallet Connect -->
       <div id="wallet-section" class="text-center">
-        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">Connect Wallet</button>
+        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">
+          Connect Wallet
+        </button>
       </div>
       <!-- App Content -->
       <div id="app" class="hidden space-y-5">
@@ -71,20 +73,31 @@
     let provider, signer, presale, token;
 
     async function init() {
-      const walletConnectProvider = new WalletConnectProvider.default({ rpc: { [chainId]: rpc } });
-      await walletConnectProvider.enable();
-      provider = new ethers.providers.Web3Provider(walletConnectProvider);
-      signer = provider.getSigner();
-      const network = await provider.getNetwork();
-      if (network.chainId !== chainId) {
-        setStatus('Switch to correct network');
-        return;
+      try {
+        // Use injected if available
+        if (window.ethereum) {
+          provider = new ethers.providers.Web3Provider(window.ethereum);
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+        } else {
+          const walletConnectProvider = new WalletConnectProvider.default({ rpc: { [chainId]: rpc } });
+          await walletConnectProvider.enable();
+          provider = new ethers.providers.Web3Provider(walletConnectProvider);
+        }
+        const network = await provider.getNetwork();
+        if (network.chainId !== chainId) {
+          setStatus('Switch to the Monad Testnet (Chain ID ' + chainId + ')');
+          return;
+        }
+        signer = provider.getSigner();
+        presale = new ethers.Contract(presaleAddr, presaleAbi, signer);
+        token = new ethers.Contract(tokenAddr, tokenAbi, signer);
+
+        document.getElementById('wallet-section').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        updateProgress();
+      } catch (err) {
+        setStatus('Connection failed');
       }
-      presale = new ethers.Contract(presaleAddr, presaleAbi, signer);
-      token = new ethers.Contract(tokenAddr, tokenAbi, signer);
-      document.getElementById('wallet-section').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-      updateProgress();
     }
 
     async function updateProgress() {
@@ -100,7 +113,8 @@
     }
 
     function setStatus(msg) {
-      document.getElementById('status').innerText = msg;
+      const el = document.getElementById('status');
+      el.innerText = msg;
     }
 
     document.getElementById('connect-btn').onclick = init;
