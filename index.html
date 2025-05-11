@@ -10,35 +10,20 @@
   <script src="https://unpkg.com/web3modal@1.9.8/dist/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
-    :root {
-      --lavender: #e6e6fa;
-      --lavender-dark: #b39ddb;
-      --lavender-accent: #9575cd;
-      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body { background: var(--lavender); font-family: var(--font); margin: 0; padding: 0; display: flex; justify-content: center; }
-    header { width: 100%; max-width: 480px; background: var(--lavender-dark); color: #fff; padding: 1rem; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-    main { width: 100%; max-width: 480px; display: grid; gap: 1rem; padding: 1rem; }
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 1.5rem; }
-    .card h3 { margin: 0 0 0.5rem; color: var(--lavender-dark); }
-    .progress-container { background: #f3f3f3; border-radius: 8px; overflow: hidden; height: 1.2rem; margin-top: 0.5rem; }
-    .progress-bar { height: 100%; width: 0; background: var(--lavender-accent); transition: width 0.4s ease; }
-    .flex-row { display: flex; align-items: center; gap: 0.5rem; }
-    .flex-row input { flex: 1; }
-    .button-group { display: flex; gap: 0.5rem; }
-    input, button { font-size: 1rem; }
-    input { padding: 0.6rem; border: 1px solid #ccc; border-radius: 8px; }
-    button { flex: none; padding: 0.6rem 1rem; border: none; border-radius: 8px; background: var(--lavender-accent); color: #fff; cursor: pointer; transition: background 0.3s; }
-    button:hover:not(:disabled) { background: var(--lavender-dark); }
-    button:disabled { background: #ccc; cursor: not-allowed; }
-    #status { text-align: center; font-size: 0.9rem; color: #555; margin-top: 0.5rem; }
+    :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--lavender); font-family: var(--font); margin:0; padding:0; display:flex; justify-content:center; }
+    main { width:100%; max-width:480px; padding:2rem; }
+    .card { background:white; border-radius:1rem; padding:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:1.5rem; }
+    .progress-container { background:#f3f3f3; border-radius:.5rem; overflow:hidden; margin-top:.5rem; }
+    .progress-bar { height:1rem; width:0%; background:var(--lavender-accent); transition:width .5s ease; }
+    input,button { width:100%; padding:.75rem; margin-top:.75rem; font-size:1rem; border:1px solid #ccc; border-radius:.5rem; box-sizing:border-box; }
+    button { background:var(--lavender-accent); color:white; border:none; cursor:pointer; transition:background .3s; }
+    button:disabled { background:#ccc; cursor:not-allowed; }
+    button:hover:not(:disabled) { background:var(--lavender-dark); }
+    #status { text-align:center; margin-top:1rem; font-size:.9rem; color:#555; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>Pillnads Presale</h1>
-  </header>
   <main>
     <div class="card" id="connectCard">
       <button id="btnConnect">Connect Wallet</button>
@@ -52,18 +37,13 @@
       <p id="progressText">0 / 100% sold</p>
     </div>
     <div class="card" id="commitCard">
-      <h3>Commit Pillnads</h3>
-      <div class="flex-row">
-        <input type="number" id="commitAmount" placeholder="Enter amount" min="1" />
-        <button id="btnCommit">Commit</button>
-      </div>
+      <label for="commitAmount">Amount of Pillnads to commit</label>
+      <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
+      <button id="btnCommit">Commit</button>
     </div>
     <div class="card">
-      <h3>Actions</h3>
-      <div class="button-group">
-        <button id="btnClaim">Claim Tokens</button>
-        <button id="btnRefund">Refund</button>
-      </div>
+      <button id="btnClaim">Claim Tokens</button>
+      <button id="btnRefund">Refund</button>
     </div>
     <p id="status"></p>
   </main>
@@ -72,7 +52,10 @@
     const { ethers } = window.ethers;
     const WalletConnectProvider = window.WalletConnectProvider.default;
     const providerOptions = {
-      walletconnect: { package: WalletConnectProvider, options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' } } }
+      walletconnect: {
+        package: WalletConnectProvider,
+        options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' } }
+      }
     };
     const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
 
@@ -91,7 +74,8 @@
         const net = await provider.getNetwork();
         if (net.chainId !== chainId) throw new Error('Wrong network');
         signer = provider.getSigner();
-        document.getElementById('walletAddress').innerText = await signer.getAddress();
+        const address = await signer.getAddress();
+        document.getElementById('walletAddress').innerText = address;
         document.getElementById('connectCard').style.display = 'none';
         presaleContract = new ethers.Contract(presaleAddress, abi, signer);
         updateProgress();
@@ -122,8 +106,16 @@
       await (await presaleContract.commit(ethers.utils.parseUnits(amt,18))).wait();
       setStatus('Committed!'); updateProgress();
     };
-    document.getElementById('btnClaim').onclick = async () => { setStatus('Claiming...'); await (await presaleContract.claim()).wait(); setStatus('Claimed!'); };
-    document.getElementById('btnRefund').onclick = async () => { setStatus('Refunding...'); await (await presaleContract.refuse()).wait(); setStatus('Refunded!'); updateProgress(); };
+    document.getElementById('btnClaim').onclick = async () => {
+      setStatus('Claiming...');
+      await (await presaleContract.claim()).wait();
+      setStatus('Claimed!');
+    };
+    document.getElementById('btnRefund').onclick = async () => {
+      setStatus('Refunding...');
+      await (await presaleContract.refuse()).wait();
+      setStatus('Refunded!'); updateProgress();
+    };
   </script>
 </body>
 </html>
