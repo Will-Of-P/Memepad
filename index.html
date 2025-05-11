@@ -6,90 +6,28 @@
   <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect Provider v1 (pin to avoid registry v2 call) -->
+  <!-- WalletConnect Provider v1 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
-    :root {
-      --lavender: #e6e6fa;
-      --lavender-dark: #b39ddb;
-      --lavender-accent: #9575cd;
-      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    body {
-      background-color: var(--lavender);
-      font-family: var(--font);
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      color: #333;
-    }
-    main {
-      width: 100%;
-      max-width: 480px;
-      padding: 2rem;
-      box-sizing: border-box;
-    }
-    .card {
-      background-color: white;
-      border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      margin-bottom: 1.5rem;
-    }
-    .progress-container {
-      background-color: #f3f3f3;
-      border-radius: .5rem;
-      overflow: hidden;
-      margin-top: .5rem;
-    }
-    .progress-bar {
-      height: 1rem;
-      width: 0%;
-      background-color: var(--lavender-accent);
-      transition: width 0.5s ease-in-out;
-    }
-    input, button {
-      width: 100%;
-      padding: .75rem;
-      margin-top: .75rem;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: .5rem;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: var(--lavender-accent);
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    button:hover:not(:disabled) {
-      background-color: var(--lavender-dark);
-    }
-    #status {
-      text-align: center;
-      margin-top: 1rem;
-      font-size: .9rem;
-      color: #555;
-    }
+    :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--lavender); font-family: var(--font); margin:0; padding:0; display:flex; justify-content:center; }
+    main { width:100%; max-width:480px; padding:2rem; }
+    .card { background:white; border-radius:1rem; padding:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:1.5rem; }
+    .progress-container { background:#f3f3f3; border-radius:.5rem; overflow:hidden; margin-top:.5rem; }
+    .progress-bar { height:1rem; width:0%; background:var(--lavender-accent); transition:width .5s ease; }
+    input,button { width:100%; padding:.75rem; margin-top:.75rem; font-size:1rem; border:1px solid #ccc; border-radius:.5rem; box-sizing:border-box; }
+    button { background:var(--lavender-accent); color:white; border:none; cursor:pointer; transition:background .3s; }
+    button:disabled { background:#ccc; cursor:not-allowed; }
+    button:hover:not(:disabled) { background:var(--lavender-dark); }
+    #status { text-align:center; margin-top:1rem; font-size:.9rem; color:#555; }
   </style>
 </head>
 <body>
   <main>
-    <!-- Connect Wallet -->
     <div class="card" id="connectCard">
       <button id="btnConnect">Connect Wallet</button>
       <p id="walletAddress">Not connected</p>
     </div>
-    <!-- Sale Progress -->
     <div class="card" id="progressCard">
       <h3>Sale Progress</h3>
       <div class="progress-container">
@@ -97,13 +35,11 @@
       </div>
       <p id="progressText">0 / 100% sold</p>
     </div>
-    <!-- Commit -->
     <div class="card" id="commitCard">
       <label for="commitAmount">Amount of Pillnads to commit</label>
       <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
       <button id="btnCommit">Commit</button>
     </div>
-    <!-- Claim / Refund -->
     <div class="card">
       <button id="btnClaim">Claim Tokens</button>
       <button id="btnRefund">Refund</button>
@@ -113,33 +49,23 @@
 
   <script>
     const { ethers } = window.ethers;
+    const WalletConnectProvider = window.WalletConnectProvider;
     const chainId = 10143;
     const rpc = { 10143: 'https://testnet-rpc.monad.xyz' };
     const presaleAddress = '0x5CB1c4603441e4Ae7771ed2b36850Ef53328e646';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
     const TOKENS_FOR_SALE = ethers.BigNumber.from('10000000').mul(ethers.BigNumber.from('10').pow(18));
 
-    let provider, signer;
-    let presaleContract;
-
-    const abi = [
-      'function commit(uint256 amount) external',
-      'function claim() external',
-      'function refuse() external',
-      'function totalCommitted() public view returns (uint256)'
-    ];
+    let provider, signer, presaleContract;
+    const abi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
 
     async function init() {
-      // Pin to v1.7.8 to avoid registry v2 lookup
-      const wcProvider = new WalletConnectProvider({ rpc, qrcode: true });
-      await wcProvider.enable();
-      provider = new ethers.providers.Web3Provider(wcProvider);
+      const wc = new WalletConnectProvider({ rpc, qrcode: true });
+      await wc.enable();
+      provider = new ethers.providers.Web3Provider(wc);
       signer = provider.getSigner();
-      const network = await provider.getNetwork();
-      if (network.chainId !== chainId) {
-        setStatus('Please switch network to Monad Testnet (Chain ID ' + chainId + ')');
-        throw new Error('Wrong network');
-      }
+      const net = await provider.getNetwork();
+      if (net.chainId !== chainId) return setStatus('Switch to Monad Testnet (ID '+chainId+')');
       presaleContract = new ethers.Contract(presaleAddress, abi, signer);
       document.getElementById('walletAddress').innerText = await signer.getAddress();
       document.getElementById('connectCard').style.display = 'none';
@@ -148,65 +74,31 @@
 
     async function updateProgress() {
       const committed = await presaleContract.totalCommitted();
-      const percent = committed.mul(100).div(TOKENS_FOR_SALE);
-      document.getElementById('progressBar').style.width = percent.toString() + '%';
-      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed, 18)} / ${ethers.utils.formatUnits(TOKENS_FOR_SALE, 18)} (${percent}% )`;
-      if (percent.gte(100)) {
-        document.getElementById('commitCard').remove();
-      }
+      const pct = committed.mul(100).div(TOKENS_FOR_SALE);
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed,18)}/${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
+      if (pct.gte(100)) document.getElementById('commitCard').remove();
     }
 
-    function setStatus(msg) {
-      document.getElementById('status').innerText = msg;
-    }
+    function setStatus(msg){ document.getElementById('status').innerText=msg; }
 
-    document.getElementById('btnConnect').onclick = () => init().catch(e => console.error(e));
-
-    document.getElementById('btnCommit').onclick = async () => {
-      try {
-        const amount = document.getElementById('commitAmount').value;
-        setStatus('Approving Pillnads...');
-        const pillnads = new ethers.Contract(pillnadsAddress, [
-          'function approve(address spender, uint256 amount) external returns (bool)'
-        ], signer);
-        const max = ethers.constants.MaxUint256;
-        const approveTx = await pillnads.approve(presaleAddress, max);
-        await approveTx.wait();
+    document.getElementById('btnConnect').onclick = ()=>init().catch(console.error);
+    document.getElementById('btnCommit').onclick = async()=>{
+      try{
+        const amt=document.getElementById('commitAmount').value;
+        setStatus('Approving...');
+        const pill = new ethers.Contract(pillnadsAddress,['function approve(address,uint256)'],signer);
+        await (await pill.approve(presaleAddress,ethers.constants.MaxUint256)).wait();
         setStatus('Committing...');
-        const tx = await presaleContract.commit(ethers.utils.parseUnits(amount, 18));
-        await tx.wait();
-        setStatus('Commit successful');
-        updateProgress();
-      } catch (err) {
-        console.error(err);
-        setStatus('Error: ' + (err.message || err));
-      }
-    };
-
-    document.getElementById('btnClaim').onclick = async () => {
-      try {
-        setStatus('Claiming tokens...');
-        const tx = await presaleContract.claim();
-        await tx.wait();
-        setStatus('Claim successful');
-      } catch (err) {
-        console.error(err);
-        setStatus('Error: ' + (err.message || err));
-      }
-    };
-
-    document.getElementById('btnRefund').onclick = async () => {
-      try {
-        setStatus('Requesting refund...');
-        const tx = await presaleContract.refuse();
-        await tx.wait();
-        setStatus('Refund successful');
-        updateProgress();
-      } catch (err) {
-        console.error(err);
-        setStatus('Error: ' + (err.message || err));
-      }
-    };
+        await (await presaleContract.commit(ethers.utils.parseUnits(amt,18))).wait();
+        setStatus('Done'); updateProgress();
+      }catch(e){console.error(e); setStatus('Err: '+e.message);}    };
+    document.getElementById('btnClaim').onclick=async()=>{
+      try{ setStatus('Claiming...'); await (await presaleContract.claim()).wait(); setStatus('Claimed'); }
+      catch(e){console.error(e); setStatus('Err: '+e.message);} };
+    document.getElementById('btnRefund').onclick=async()=>{
+      try{ setStatus('Refunding...'); await (await presaleContract.refuse()).wait(); setStatus('Refunded'); updateProgress(); }
+      catch(e){console.error(e); setStatus('Err: '+e.message);} };
   </script>
 </body>
 </html>
