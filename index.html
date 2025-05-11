@@ -6,8 +6,8 @@
   <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect Provider -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <!-- WalletConnect Provider v1 (pin to avoid registry v2 call) -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
     :root {
       --lavender: #e6e6fa;
@@ -130,8 +130,8 @@
     ];
 
     async function init() {
-      // Always use WalletConnect with QR code
-      const wcProvider = new WalletConnectProvider.default({ rpc, qrcode: true });
+      // Pin to v1.7.8 to avoid registry v2 lookup
+      const wcProvider = new WalletConnectProvider({ rpc, qrcode: true });
       await wcProvider.enable();
       provider = new ethers.providers.Web3Provider(wcProvider);
       signer = provider.getSigner();
@@ -142,7 +142,6 @@
       }
       presaleContract = new ethers.Contract(presaleAddress, abi, signer);
       document.getElementById('walletAddress').innerText = await signer.getAddress();
-      // Hide connect section after connected
       document.getElementById('connectCard').style.display = 'none';
       updateProgress();
     }
