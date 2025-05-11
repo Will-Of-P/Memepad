@@ -1,180 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Launchpad</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.jsdelivr.net/npm/tailwindcss-jit-cdn"></script>
-  <!-- WalletConnect Provider (UMD) -->
-  <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
-  <!-- Web3Modal v1 UMD -->
-  <script src="https://unpkg.com/web3modal@1.9.8/dist/index.umd.js"></script>
-  <!-- Ethers.js UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.umd.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pillnads Presale</title>
+  <!-- Ethers.js -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
+  <!-- WalletConnect Provider -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider/dist/umd/index.min.js"></script>
+  <style>
+    :root {
+      --lavender: #e6e6fa;
+      --lavender-dark: #b39ddb;
+      --lavender-accent: #9575cd;
+      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: var(--lavender);
+      font-family: var(--font);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    header {
+      background-color: var(--lavender-dark);
+      width: 100%;
+      padding: 1rem;
+      text-align: center;
+      color: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    main {
+      flex: 1;
+      width: 100%;
+      max-width: 480px;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+    .card {
+      background-color: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 1.5rem;
+    }
+    .progress-container {
+      background-color: #f3f3f3;
+      border-radius: .5rem;
+      overflow: hidden;
+      margin-top: .5rem;
+    }
+    .progress-bar {
+      height: 1rem;
+      width: 0%;
+      background-color: var(--lavender-accent);
+      transition: width 0.5s ease-in-out;
+    }
+    input, button {
+      width: 100%;
+      padding: .75rem;
+      margin-top: .75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: .5rem;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: var(--lavender-accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background-color: var(--lavender-dark);
+    }
+    #status {
+      text-align: center;
+      margin-top: 1rem;
+      font-size: .9rem;
+      color: #555;
+    }
+  </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-purple-50 to-purple-200 flex items-center justify-center p-4">
-  <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
-    <div class="p-8 space-y-6">
-      <!-- Progress -->
-      <div>
-        <div class="flex justify-between mb-1">
-          <span class="text-gray-700 font-medium">Sale Progress</span>
-          <span id="progress-text" class="text-gray-600 text-sm">0% sold</span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-4">
-          <div id="progress-bar" class="bg-purple-500 h-4 rounded-full" style="width:0%"></div>
-        </div>
-      </div>
-
-      <!-- Wallet Connect -->
-      <div id="wallet-section" class="text-center">
-        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">
-          Connect Wallet
-        </button>
-      </div>
-
-      <!-- App Content -->
-      <div id="app" class="hidden space-y-5">
-        <!-- Amount Input -->
-        <div>
-          <label for="amount-input" class="block text-gray-700 mb-2 font-medium">Amount (PNDS)</label>
-          <div class="relative">
-            <input id="amount-input" type="number" min="0" placeholder="0.0" class="w-full border border-gray-300 rounded-full py-3 px-5 pr-20 focus:outline-none focus:ring-2 focus:ring-purple-400">
-            <span class="absolute right-6 top-1/2 transform -translate-y-1/2 text-purple-600 font-semibold">PNDS</span>
-          </div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-2 gap-4">
-          <button id="approve-btn" class="w-full bg-white border-2 border-purple-500 text-purple-500 font-medium py-3 rounded-full hover:bg-purple-50 transition">Approve</button>
-          <button id="buy-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-700 text-white font-medium py-3 rounded-full hover:opacity-90 transition">Buy</button>
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <button id="claim-btn" class="w-full bg-green-500 text-white font-medium py-3 rounded-full hover:bg-green-600 transition">Claim</button>
-          <button id="refund-btn" class="w-full bg-red-500 text-white font-medium py-3 rounded-full hover:bg-red-600 transition">Refund</button>
-        </div>
-
-        <!-- Status Message -->
-        <p id="status" class="text-center text-gray-700 mt-4"></p>
-      </div>
+<body>
+  <header>
+    <h1>Pillnads Presale Interface</h1>
+  </header>
+  <main>
+    <div class="card">
+      <button id="btnConnect">Connect Wallet</button>
+      <p id="walletAddress">Not connected</p>
     </div>
-  </div>
+    <div class="card">
+      <label for="commitAmount">Amount of Pillnads to commit</label>
+      <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
+      <button id="btnCommit">Commit</button>
+    </div>
+    <div class="card">
+      <button id="btnClaim">Claim Tokens</button>
+      <button id="btnRefund">Refund</button>
+    </div>
+    <div class="card">
+      <h3>Sale Progress</h3>
+      <div class="progress-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <p id="progressText">0 / 100% sold</p>
+    </div>
+    <p id="status"></p>
+  </main>
 
   <script>
-    // Config
     const chainId = 10143;
-    const rpc = 'https://testnet-rpc.monad.xyz';
-    const presaleAddr = '0x5CB1c4603441e4Ae7771ed2b36850Ef53328e646';
-    const tokenAddr = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
-    const presaleAbi = [
-      'function commit(uint256) external',
-      'function claim() external',
-      'function refuse() external',
-      'function totalCommitted() view returns (uint256)',
-      'function TOKENS_FOR_SALE() view returns (uint256)'
-    ];
-    const tokenAbi = ['function approve(address,uint256) external'];
-
-    // Setup Web3Modal
+    const rpc = { 10143: 'https://testnet-rpc.monad.xyz' };
+    const presaleAddress = '0x5CB1c4603441e4Ae7771ed2b36850Ef53328e646';
+    const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
+    const TOKENS_FOR_SALE = ethers.BigNumber.from('10000000').mul(ethers.BigNumber.from('10').pow(18));
     const providerOptions = {
       walletconnect: {
-        package: window.WalletConnectProvider,
-        options: { rpc: { [chainId]: rpc } }
+        package: WalletConnectProvider.default,
+        options: { rpc }
       }
     };
-    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
 
-    let provider, signer, presale, token;
+    let provider, signer;
+    let presaleContract;
 
-    async function connectWallet() {
-      try {
-        const instance = await web3Modal.connect();
-        provider = new window.ethers.providers.Web3Provider(instance);
-        const network = await provider.getNetwork();
-        if (network.chainId !== chainId) {
-          setStatus('Switch to Monad Testnet (ID ' + chainId + ')');
-          return;
-        }
-        signer = provider.getSigner();
-        presale = new window.ethers.Contract(presaleAddr, presaleAbi, signer);
-        token = new window.ethers.Contract(tokenAddr, tokenAbi, signer);
+    const abi = [
+      'function commit(uint256 amount) external',
+      'function claim() external',
+      'function refuse() external',
+      'function totalCommitted() public view returns (uint256)'
+    ];
 
-        document.getElementById('wallet-section').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
-        document.getElementById('connect-btn').innerText = 'Connected';
-        await updateProgress();
-      } catch (e) {
-        console.error(e);
-        setStatus('Connection failed');
+    async function init() {
+      provider = new ethers.providers.Web3Provider(
+        await (new WalletConnectProvider.default(providerOptions)).enable()
+      );
+      signer = provider.getSigner();
+      const network = await provider.getNetwork();
+      if (network.chainId !== chainId) {
+        setStatus('Please switch network to Monad Testnet (Chain ID ' + chainId + ')');
+        throw new Error('Wrong network');
       }
+      presaleContract = new ethers.Contract(presaleAddress, abi, signer);
+      document.getElementById('walletAddress').innerText = await signer.getAddress();
+      updateProgress();
     }
 
     async function updateProgress() {
-      try {
-        const committed = await presale.totalCommitted();
-        const total = await presale.TOKENS_FOR_SALE();
-        const percent = committed.mul(10000).div(total).toNumber() / 100;
-        document.getElementById('progress-bar').style.width = percent + '%';
-        document.getElementById('progress-text').innerText = percent + '% sold';
-      } catch (e) {
-        console.error(e);
-      }
+      const committed = await presaleContract.totalCommitted();
+      const percent = committed.mul(100).div(TOKENS_FOR_SALE);
+      document.getElementById('progressBar').style.width = percent.toString() + '%';
+      document.getElementById('progressText').innerText = committed.toString() + ' / ' + TOKENS_FOR_SALE.toString() + ' (' + percent + '%)';
     }
 
     function setStatus(msg) {
       document.getElementById('status').innerText = msg;
     }
 
-    // Event Listeners
-    document.getElementById('connect-btn').addEventListener('click', connectWallet);
-    document.getElementById('approve-btn').addEventListener('click', async () => {
-      setStatus('Approving...');
+    document.getElementById('btnConnect').onclick = () => {
+      init().catch(e => console.error(e));
+    };
+    document.getElementById('btnCommit').onclick = async () => {
       try {
-        const tx = await token.approve(presaleAddr, window.ethers.constants.MaxUint256);
+        const amount = document.getElementById('commitAmount').value;
+        setStatus('Approving Pillnads...');
+        const pillnads = new ethers.Contract(pillnadsAddress, [
+          'function approve(address spender, uint256 amount) external returns (bool)'
+        ], signer);
+        const approveTx = await pillnads.approve(presaleAddress, ethers.utils.parseUnits(amount, 18));
+        await approveTx.wait();
+        setStatus('Committing...');
+        const tx = await presaleContract.commit(ethers.utils.parseUnits(amount, 18));
         await tx.wait();
-        setStatus('Approved');
-      } catch (e) {
-        console.error(e);
-        setStatus('Approval failed');
+        setStatus('Commit successful');
+        updateProgress();
+      } catch (err) {
+        console.error(err);
+        setStatus('Error: ' + err.message);
       }
-    });
-    document.getElementById('buy-btn').addEventListener('click', async () => {
-      const val = document.getElementById('amount-input').value;
-      if (!val || Number(val) <= 0) return setStatus('Enter valid amount');
-      setStatus('Buying...');
+    };
+    document.getElementById('btnClaim').onclick = async () => {
       try {
-        const tx = await presale.commit(window.ethers.utils.parseUnits(val, 18));
+        setStatus('Claiming tokens...');
+        const tx = await presaleContract.claim();
         await tx.wait();
-        setStatus('Bought!');
-        await updateProgress();
-      } catch (e) {
-        console.error(e);
-        setStatus('Buy failed');
+        setStatus('Claim successful');
+      } catch (err) {
+        console.error(err);
+        setStatus('Error: ' + err.message);
       }
-    });
-    document.getElementById('claim-btn').addEventListener('click', async () => {
-      setStatus('Claiming...');
+    };
+    document.getElementById('btnRefund').onclick = async () => {
       try {
-        const tx = await presale.claim();
+        setStatus('Requesting refund...');
+        const tx = await presaleContract.refuse();
         await tx.wait();
-        setStatus('Claimed!');
-      } catch (e) {
-        console.error(e);
-        setStatus('Claim failed');
+        setStatus('Refund successful');
+        updateProgress();
+      } catch (err) {
+        console.error(err);
+        setStatus('Error: ' + err.message);
       }
-    });
-    document.getElementById('refund-btn').addEventListener('click', async () => {
-      setStatus('Refunding...');
-      try {
-        const tx = await presale.refuse();
-        await tx.wait();
-        setStatus('Refunded!');
-      } catch (e) {
-        console.error(e);
-        setStatus('Refund failed');
-      }
-    });
+    };
   </script>
 </body>
 </html>
