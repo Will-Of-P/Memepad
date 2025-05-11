@@ -6,12 +6,12 @@
   <title>Launchpad</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.jsdelivr.net/npm/tailwindcss-jit-cdn"></script>
+  <!-- WalletConnect Provider (UMD) -->
+  <script src="https://unpkg.com/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
+  <!-- Web3Modal v1 UMD -->
+  <script src="https://unpkg.com/web3modal@1.9.8/dist/index.umd.js"></script>
   <!-- Ethers.js UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect Provider (UMD) -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
-  <!-- Web3Modal v1 UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.8/dist/index.js"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-purple-50 to-purple-200 flex items-center justify-center p-4">
   <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -76,29 +76,29 @@
     ];
     const tokenAbi = ['function approve(address,uint256) external'];
 
-    // Web3Modal Provider Options
+    // Setup Web3Modal
     const providerOptions = {
       walletconnect: {
-        package: WalletConnectProvider, // from UMD
+        package: window.WalletConnectProvider,
         options: { rpc: { [chainId]: rpc } }
       }
     };
-    const web3Modal = new Web3Modal({ cacheProvider: false, providerOptions });
+    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
 
     let provider, signer, presale, token;
 
     async function connectWallet() {
       try {
         const instance = await web3Modal.connect();
-        provider = new ethers.providers.Web3Provider(instance);
+        provider = new window.ethers.providers.Web3Provider(instance);
         const network = await provider.getNetwork();
         if (network.chainId !== chainId) {
           setStatus('Switch to Monad Testnet (ID ' + chainId + ')');
           return;
         }
         signer = provider.getSigner();
-        presale = new ethers.Contract(presaleAddr, presaleAbi, signer);
-        token = new ethers.Contract(tokenAddr, tokenAbi, signer);
+        presale = new window.ethers.Contract(presaleAddr, presaleAbi, signer);
+        token = new window.ethers.Contract(tokenAddr, tokenAbi, signer);
 
         document.getElementById('wallet-section').style.display = 'none';
         document.getElementById('app').style.display = 'block';
@@ -117,30 +117,63 @@
         const percent = committed.mul(10000).div(total).toNumber() / 100;
         document.getElementById('progress-bar').style.width = percent + '%';
         document.getElementById('progress-text').innerText = percent + '% sold';
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    function setStatus(msg) { document.getElementById('status').innerText = msg; }
+    function setStatus(msg) {
+      document.getElementById('status').innerText = msg;
+    }
 
     // Event Listeners
     document.getElementById('connect-btn').addEventListener('click', connectWallet);
     document.getElementById('approve-btn').addEventListener('click', async () => {
       setStatus('Approving...');
-      try { const tx = await token.approve(presaleAddr, ethers.constants.MaxUint256); await tx.wait(); setStatus('Approved'); } catch { setStatus('Approval failed'); }
+      try {
+        const tx = await token.approve(presaleAddr, window.ethers.constants.MaxUint256);
+        await tx.wait();
+        setStatus('Approved');
+      } catch (e) {
+        console.error(e);
+        setStatus('Approval failed');
+      }
     });
     document.getElementById('buy-btn').addEventListener('click', async () => {
       const val = document.getElementById('amount-input').value;
       if (!val || Number(val) <= 0) return setStatus('Enter valid amount');
       setStatus('Buying...');
-      try { const tx = await presale.commit(ethers.utils.parseUnits(val, 18)); await tx.wait(); setStatus('Bought!'); await updateProgress(); } catch { setStatus('Buy failed'); }
+      try {
+        const tx = await presale.commit(window.ethers.utils.parseUnits(val, 18));
+        await tx.wait();
+        setStatus('Bought!');
+        await updateProgress();
+      } catch (e) {
+        console.error(e);
+        setStatus('Buy failed');
+      }
     });
     document.getElementById('claim-btn').addEventListener('click', async () => {
       setStatus('Claiming...');
-      try { const tx = await presale.claim(); await tx.wait(); setStatus('Claimed!'); } catch { setStatus('Claim failed'); }
+      try {
+        const tx = await presale.claim();
+        await tx.wait();
+        setStatus('Claimed!');
+      } catch (e) {
+        console.error(e);
+        setStatus('Claim failed');
+      }
     });
     document.getElementById('refund-btn').addEventListener('click', async () => {
       setStatus('Refunding...');
-      try { const tx = await presale.refuse(); await tx.wait(); setStatus('Refunded!'); } catch { setStatus('Refund failed'); }
+      try {
+        const tx = await presale.refuse();
+        await tx.wait();
+        setStatus('Refunded!');
+      } catch (e) {
+        console.error(e);
+        setStatus('Refund failed');
+      }
     });
   </script>
 </body>
