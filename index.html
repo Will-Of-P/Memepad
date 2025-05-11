@@ -6,7 +6,8 @@
   <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect Provider v1 UMD -->
+  <!-- Web3Modal & WalletConnect Provider -->
+  <script src="https://unpkg.com/web3modal@1.9.8/dist/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
     :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -49,28 +50,39 @@
 
   <script>
     const { ethers } = window.ethers;
-    // Use default export from UMD
     const WalletConnectProvider = window.WalletConnectProvider.default;
+    const providerOptions = {
+      walletconnect: {
+        package: WalletConnectProvider,
+        options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' } }
+      }
+    };
+    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
+
     const chainId = 10143;
-    const rpc = { 10143: 'https://testnet-rpc.monad.xyz' };
     const presaleAddress = '0x5CB1c4603441e4Ae7771ed2b36850Ef53328e646';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
     const TOKENS_FOR_SALE = ethers.BigNumber.from('10000000').mul(ethers.BigNumber.from('10').pow(18));
-
-    let provider, signer, presaleContract;
     const abi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
 
-    async function init() {
-      const wc = new WalletConnectProvider({ rpc, qrcode: true });
-      await wc.enable();
-      provider = new ethers.providers.Web3Provider(wc);
-      signer = provider.getSigner();
-      const net = await provider.getNetwork();
-      if (net.chainId !== chainId) return setStatus('Switch to Monad Testnet (ID '+chainId+')');
-      presaleContract = new ethers.Contract(presaleAddress, abi, signer);
-      document.getElementById('walletAddress').innerText = await signer.getAddress();
-      document.getElementById('connectCard').style.display = 'none';
-      updateProgress();
+    let provider, signer, presaleContract;
+
+    async function connect() {
+      try {
+        const instance = await web3Modal.connect();
+        provider = new ethers.providers.Web3Provider(instance);
+        const net = await provider.getNetwork();
+        if (net.chainId !== chainId) throw new Error('Wrong network');
+        signer = provider.getSigner();
+        const address = await signer.getAddress();
+        document.getElementById('walletAddress').innerText = address;
+        document.getElementById('connectCard').style.display = 'none';
+        presaleContract = new ethers.Contract(presaleAddress, abi, signer);
+        updateProgress();
+      } catch (e) {
+        console.error(e);
+        setStatus('Connection failed: ' + e.message);
+      }
     }
 
     async function updateProgress() {
@@ -81,25 +93,29 @@
       if (pct.gte(100)) document.getElementById('commitCard').remove();
     }
 
-    function setStatus(msg){ document.getElementById('status').innerText=msg; }
+    function setStatus(msg){ document.getElementById('status').innerText = msg; }
 
-    document.getElementById('btnConnect').onclick = ()=>init().catch(console.error);
-    document.getElementById('btnCommit').onclick = async()=>{
-      try{
-        const amt=document.getElementById('commitAmount').value;
-        setStatus('Approving...');
-        const pill = new ethers.Contract(pillnadsAddress,['function approve(address,uint256)'],signer);
-        await (await pill.approve(presaleAddress,ethers.constants.MaxUint256)).wait();
-        setStatus('Committing...');
-        await (await presaleContract.commit(ethers.utils.parseUnits(amt,18))).wait();
-        setStatus('Done'); updateProgress();
-      }catch(e){console.error(e); setStatus('Err: '+e.message);}    };
-    document.getElementById('btnClaim').onclick=async()=>{
-      try{ setStatus('Claiming...'); await (await presaleContract.claim()).wait(); setStatus('Claimed'); }
-      catch(e){console.error(e); setStatus('Err: '+e.message);} };
-    document.getElementById('btnRefund').onclick=async()=>{
-      try{ setStatus('Refunding...'); await (await presaleContract.refuse()).wait(); setStatus('Refunded'); updateProgress(); }
-      catch(e){console.error(e); setStatus('Err: '+e.message);} };
+    document.getElementById('btnConnect').onclick = connect;
+    document.getElementById('btnCommit').onclick = async () => {
+      const amt = document.getElementById('commitAmount').value;
+      if (!amt) return;
+      setStatus('Approving...');
+      const token = new ethers.Contract(pillnadsAddress, ['function approve(address,uint256)'], signer);
+      await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait();
+      setStatus('Committing...');
+      await (await presaleContract.commit(ethers.utils.parseUnits(amt,18))).wait();
+      setStatus('Committed!'); updateProgress();
+    };
+    document.getElementById('btnClaim').onclick = async () => {
+      setStatus('Claiming...');
+      await (await presaleContract.claim()).wait();
+      setStatus('Claimed!');
+    };
+    document.getElementById('btnRefund').onclick = async () => {
+      setStatus('Refunding...');
+      await (await presaleContract.refuse()).wait();
+      setStatus('Refunded!'); updateProgress();
+    };
   </script>
 </body>
 </html>
