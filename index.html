@@ -84,6 +84,11 @@
 </head>
 <body>
   <main>
+    <!-- Connect Wallet -->
+    <div class="card" id="connectCard">
+      <button id="btnConnect">Connect Wallet</button>
+      <p id="walletAddress">Not connected</p>
+    </div>
     <!-- Sale Progress -->
     <div class="card" id="progressCard">
       <h3>Sale Progress</h3>
@@ -91,11 +96,6 @@
         <div class="progress-bar" id="progressBar"></div>
       </div>
       <p id="progressText">0 / 100% sold</p>
-    </div>
-    <!-- Connect Wallet -->
-    <div class="card" id="connectCard">
-      <button id="btnConnect">Connect Wallet</button>
-      <p id="walletAddress">Not connected</p>
     </div>
     <!-- Commit -->
     <div class="card" id="commitCard">
@@ -130,7 +130,8 @@
     ];
 
     async function init() {
-      const wcProvider = new WalletConnectProvider.default({ rpc });
+      // Always use WalletConnect with QR code
+      const wcProvider = new WalletConnectProvider.default({ rpc, qrcode: true });
       await wcProvider.enable();
       provider = new ethers.providers.Web3Provider(wcProvider);
       signer = provider.getSigner();
@@ -141,7 +142,8 @@
       }
       presaleContract = new ethers.Contract(presaleAddress, abi, signer);
       document.getElementById('walletAddress').innerText = await signer.getAddress();
-      document.getElementById('btnConnect').style.display = 'none';
+      // Hide connect section after connected
+      document.getElementById('connectCard').style.display = 'none';
       updateProgress();
     }
 
@@ -151,7 +153,7 @@
       document.getElementById('progressBar').style.width = percent.toString() + '%';
       document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed, 18)} / ${ethers.utils.formatUnits(TOKENS_FOR_SALE, 18)} (${percent}% )`;
       if (percent.gte(100)) {
-        document.getElementById('commitCard').style.display = 'none';
+        document.getElementById('commitCard').remove();
       }
     }
 
