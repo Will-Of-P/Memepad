@@ -6,11 +6,12 @@
   <title>Launchpad</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.jsdelivr.net/npm/tailwindcss-jit-cdn"></script>
-  <!-- Ethers.js -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.min.js"></script>
-  <!-- Web3Modal v1 & WalletConnect -->
-  <script src="https://cdn.jsdelivr.net/npm/web3modal"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider"></script>
+  <!-- Ethers.js UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.umd.min.js"></script>
+  <!-- WalletConnect Provider (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
+  <!-- Web3Modal v1 UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.8/dist/index.js"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-purple-50 to-purple-200 flex items-center justify-center p-4">
   <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
@@ -28,7 +29,9 @@
 
       <!-- Wallet Connect -->
       <div id="wallet-section" class="text-center">
-        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">Connect Wallet</button>
+        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">
+          Connect Wallet
+        </button>
       </div>
 
       <!-- App Content -->
@@ -73,21 +76,21 @@
     ];
     const tokenAbi = ['function approve(address,uint256) external'];
 
-    // Web3Modal v1 provider options
+    // Web3Modal Provider Options
     const providerOptions = {
       walletconnect: {
-        package: window.WalletConnectProvider.default,
+        package: WalletConnectProvider, // from UMD
         options: { rpc: { [chainId]: rpc } }
       }
     };
-    const web3Modal = new window.Web3Modal.default({ providerOptions });
+    const web3Modal = new Web3Modal({ cacheProvider: false, providerOptions });
 
     let provider, signer, presale, token;
 
     async function connectWallet() {
       try {
-        const modalProvider = await web3Modal.connect();
-        provider = new ethers.providers.Web3Provider(modalProvider);
+        const instance = await web3Modal.connect();
+        provider = new ethers.providers.Web3Provider(instance);
         const network = await provider.getNetwork();
         if (network.chainId !== chainId) {
           setStatus('Switch to Monad Testnet (ID ' + chainId + ')');
@@ -97,8 +100,8 @@
         presale = new ethers.Contract(presaleAddr, presaleAbi, signer);
         token = new ethers.Contract(tokenAddr, tokenAbi, signer);
 
-        document.getElementById('wallet-section').classList.add('hidden');
-        document.getElementById('app').classList.remove('hidden');
+        document.getElementById('wallet-section').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
         document.getElementById('connect-btn').innerText = 'Connected';
         await updateProgress();
       } catch (e) {
@@ -119,6 +122,7 @@
 
     function setStatus(msg) { document.getElementById('status').innerText = msg; }
 
+    // Event Listeners
     document.getElementById('connect-btn').addEventListener('click', connectWallet);
     document.getElementById('approve-btn').addEventListener('click', async () => {
       setStatus('Approving...');
@@ -138,4 +142,6 @@
       setStatus('Refunding...');
       try { const tx = await presale.refuse(); await tx.wait(); setStatus('Refunded!'); } catch { setStatus('Refund failed'); }
     });
-  </scri
+  </script>
+</body>
+</html>
