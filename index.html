@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,12 +7,55 @@
   <script src="https://cdn.jsdelivr.net/npm/tailwindcss-jit-cdn"></script>
   <!-- Ethers UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect UMD -->
-  <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <!-- Web3Modal V2 -->
+  <script type="module">
+    import { Web3Modal } from 'https://unpkg.com/@web3modal/html?module';
+    import { EthereumClient, modalConnectors, walletConnectProvider } from 'https://unpkg.com/@web3modal/ethereum?module';
+
+    // 1. Replace with your own WalletConnect Project ID
+    const projectId = 'YOUR_PROJECT_ID';
+
+    // 2. Configure chain
+    const chains = [{
+      id: 10143,
+      name: 'Monad Testnet',
+      rpc: ['https://testnet-rpc.monad.xyz'],
+      nativeCurrency: { name: 'Monad', symbol: 'MN', decimals: 18 }
+    }];
+
+    // 3. Set up Ethereum client
+    const ethereumClient = new EthereumClient(
+      modalConnectors({ appName: 'Launchpad', projectId, chains }),
+      walletConnectProvider({ projectId, chains })
+    );
+
+    // 4. Initialize modal
+    const web3Modal = new Web3Modal({ projectId, ethereumClient });
+
+    window.connectWallet = async function() {
+      try {
+        // Open modal to connect
+        await web3Modal.openModal({});
+        const provider = await ethereumClient.getProvider();
+        window.provider = new ethers.providers.Web3Provider(provider);
+        const network = await window.provider.getNetwork();
+        if (network.chainId !== chains[0].id) {
+          setStatus('Switch to Monad Testnet (ID ' + chains[0].id + ')');
+          return;
+        }
+        window.signer = window.provider.getSigner();
+        document.getElementById('wallet-section').classList.add('hidden');
+        const btn = document.getElementById('connect-btn'); btn.disabled=true; btn.innerText='Connected';
+        document.getElementById('app').classList.remove('hidden');
+        await updateProgress();
+      } catch (e) {
+        setStatus('Connection failed');
+      }
+    };
+  </script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-purple-50 to-purple-200 flex items-center justify-center p-4">
   <div class="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
-    <!-- Header removed -->
     <div class="p-8 space-y-6">
       <!-- Progress -->
       <div>
@@ -27,9 +69,7 @@
       </div>
       <!-- Wallet Connect -->
       <div id="wallet-section" class="text-center">
-        <button id="connect-btn" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">
-          Connect Wallet
-        </button>
+        <button id="connect-btn" onclick="connectWallet()" class="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-6 rounded-full transition">Connect Wallet</button>
       </div>
       <!-- App Content -->
       <div id="app" class="hidden space-y-5">
@@ -56,72 +96,36 @@
     </div>
   </div>
   <script>
-    const rpc = 'https://testnet-rpc.monad.xyz';
-    const chainId = 10143;
     const presaleAddr = '0x5CB1c4603441e4Ae7771ed2b36850Ef53328e646';
     const tokenAddr = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
     const presaleAbi = [
-      'function commit(uint256 amount) external',
+      'function commit(uint256) external',
       'function claim() external',
       'function refuse() external',
       'function totalCommitted() view returns (uint256)',
       'function TOKENS_FOR_SALE() view returns (uint256)'
     ];
-    const tokenAbi = ['function approve(address spender, uint256 amount) external'];
+    const tokenAbi = ['function approve(address,uint256) external'];
 
-    let provider, signer, presale, token;
-
-    async function init() {
-      try {
-        if (window.ethereum) {
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-        } else {
-          const walletConnectProvider = new WalletConnectProvider.default({ disableInjectedProvider: true, rpc: { [chainId]: rpc } });
-          await walletConnectProvider.enable();
-          provider = new ethers.providers.Web3Provider(walletConnectProvider);
-        }
-        const network = await provider.getNetwork();
-        if (network.chainId !== chainId) {
-          setStatus('Switch to the Monad Testnet (Chain ID ' + chainId + ')');
-          return;
-        }
-        signer = provider.getSigner();
-        presale = new ethers.Contract(presaleAddr, presaleAbi, signer);
-        token = new ethers.Contract(tokenAddr, tokenAbi, signer);
-
-        document.getElementById('wallet-section').classList.add('hidden');
-        // Disable connect button after connecting
-        const connectBtnEl = document.getElementById('connect-btn');
-        connectBtnEl.disabled = true;
-        connectBtnEl.innerText = 'Connected';
-        document.getElementById('app').classList.remove('hidden');
-        updateProgress();
-      } catch {
-        setStatus('Connection failed');
-      }
-    }
+    let presale, token;
 
     async function updateProgress() {
       try {
+        presale = new ethers.Contract(presaleAddr, presaleAbi, window.signer);
         const committed = await presale.totalCommitted();
         const total = await presale.TOKENS_FOR_SALE();
         const percent = committed.mul(10000).div(total).toNumber() / 100;
         document.getElementById('progress-bar').style.width = percent + '%';
         document.getElementById('progress-text').innerText = percent + '% sold';
-      } catch (err) {
-        console.error('Error fetching progress', err);
+      } catch (e) {
+        console.error(e);
       }
     }
 
-    function setStatus(msg) {
-      document.getElementById('status').innerText = msg;
-    }
-
-    document.getElementById('connect-btn').onclick = init;
     document.getElementById('approve-btn').onclick = async () => {
       setStatus('Approving...');
       try {
+        token = new ethers.Contract(tokenAddr, tokenAbi, window.signer);
         const tx = await token.approve(presaleAddr, ethers.constants.MaxUint256);
         await tx.wait();
         setStatus('Approved');
@@ -130,15 +134,14 @@
       }
     };
     document.getElementById('buy-btn').onclick = async () => {
-      const value = document.getElementById('amount-input').value;
-      if (!value || Number(value) <= 0) return setStatus('Enter valid amount');
-      const amt = ethers.utils.parseUnits(value, 18);
+      const val = document.getElementById('amount-input').value;
+      if (!val || Number(val) <= 0) return setStatus('Enter valid amount');
       setStatus('Buying...');
       try {
-        const tx = await presale.commit(amt);
+        const tx = await presale.commit(ethers.utils.parseUnits(val,18));
         await tx.wait();
         setStatus('Bought!');
-        updateProgress();
+        await updateProgress();
       } catch {
         setStatus('Buy failed');
       }
@@ -163,6 +166,10 @@
         setStatus('Refund failed');
       }
     };
+
+    function setStatus(msg) {
+      document.getElementById('status').innerText = msg;
+    }
   </script>
 </body>
 </html>
