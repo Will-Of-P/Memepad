@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- Web3Modal & WalletConnect Provider -->
-  <script src="https://unpkg.com/web3modal@1.9.8/dist/index.js"></script>
+  <!-- WalletConnect Provider v1 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
     :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -26,7 +25,7 @@
 <body>
   <main>
     <div class="card" id="connectCard">
-      <button id="btnConnect">Connect Wallet</button>
+      <button id="btnConnect">Connect via WalletConnect</button>
       <p id="walletAddress">Not connected</p>
     </div>
     <div class="card" id="progressCard">
@@ -39,11 +38,11 @@
     <div class="card" id="commitCard">
       <label for="commitAmount">Amount of Pillnads to commit</label>
       <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
-      <button id="btnCommit">Commit</button>
+      <button id="btnCommit" disabled>Commit</button>
     </div>
     <div class="card">
-      <button id="btnClaim">Claim Tokens</button>
-      <button id="btnRefund">Refund</button>
+      <button id="btnClaim" disabled>Claim Tokens</button>
+      <button id="btnRefund" disabled>Refund</button>
     </div>
     <p id="status"></p>
   </main>
@@ -51,15 +50,8 @@
   <script>
     const { ethers } = window.ethers;
     const WalletConnectProvider = window.WalletConnectProvider.default;
-    const providerOptions = {
-      walletconnect: {
-        package: WalletConnectProvider,
-        options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' } }
-      }
-    };
-    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
-
-    const chainId = 10143;
+    const RPC_URL = 'https://testnet-rpc.monad.xyz';
+    const CHAIN_ID = 10143;
     const presaleAddress = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
     const TOKENS_FOR_SALE = ethers.BigNumber.from('1000000').mul(ethers.BigNumber.from('10').pow(18));
@@ -69,19 +61,23 @@
 
     async function connect() {
       try {
-        const instance = await web3Modal.connect();
-        provider = new ethers.providers.Web3Provider(instance);
+        // Always use WalletConnect to show QR code
+        const wcProvider = new WalletConnectProvider({ rpc: { [CHAIN_ID]: RPC_URL } });
+        await wcProvider.enable(); // displays QR if needed
+        provider = new ethers.providers.Web3Provider(wcProvider);
         const net = await provider.getNetwork();
-        if (net.chainId !== chainId) throw new Error('Wrong network');
+        if (net.chainId !== CHAIN_ID) throw new Error('Wrong network');
         signer = provider.getSigner();
         const address = await signer.getAddress();
         document.getElementById('walletAddress').innerText = address;
         document.getElementById('connectCard').style.display = 'none';
         presaleContract = new ethers.Contract(presaleAddress, abi, signer);
+        // enable buttons
+        ['btnCommit','btnClaim','btnRefund'].forEach(id => document.getElementById(id).disabled = false);
         updateProgress();
       } catch (e) {
         console.error(e);
-        setStatus('Connection failed: ' + e.message);
+        setStatus('Connect failed: ' + e.message);
       }
     }
 
@@ -111,16 +107,8 @@
       await (await presaleContract.commit(amount)).wait();
       setStatus('Committed!'); updateProgress();
     };
-    document.getElementById('btnClaim').onclick = async () => {
-      setStatus('Claiming...');
-      await (await presaleContract.claim()).wait();
-      setStatus('Claimed!');
-    };
-    document.getElementById('btnRefund').onclick = async () => {
-      setStatus('Refunding...');
-      await (await presaleContract.refuse()).wait();
-      setStatus('Refunded!'); updateProgress();
-    };
+    document.getElementById('btnClaim').onclick = async () => { setStatus('Claiming...'); await (await presaleContract.claim()).wait(); setStatus('Claimed!'); };
+    document.getElementById('btnRefund').onclick = async () => { setStatus('Refunding...'); await (await presaleContract.refuse()).wait(); setStatus('Refunded!'); updateProgress(); };
   </script>
 </body>
 </html>
