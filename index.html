@@ -60,9 +60,9 @@
     const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
 
     const chainId = 10143;
-    const presaleAddress = '0xe5B3F93089dA58C9a5D5f3CFF3EEa29d3D97C192';
+    const presaleAddress = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
-    const TOKENS_FOR_SALE = ethers.BigNumber.from('100000').mul(ethers.BigNumber.from('10').pow(18));
+    const TOKENS_FOR_SALE = ethers.BigNumber.from('1000000').mul(ethers.BigNumber.from('10').pow(18));
     const abi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
 
     let provider, signer, presaleContract;
