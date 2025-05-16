@@ -99,11 +99,16 @@
     document.getElementById('btnCommit').onclick = async () => {
       const amt = document.getElementById('commitAmount').value;
       if (!amt) return;
-      setStatus('Approving...');
-      const token = new ethers.Contract(pillnadsAddress, ['function approve(address,uint256)'], signer);
-      await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait();
+      setStatus('Checking allowance...');
+      const token = new ethers.Contract(pillnadsAddress, ['function approve(address,uint256)','function allowance(address,address) view returns (uint256)'], signer);
+      const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
+      const amount = ethers.utils.parseUnits(amt,18);
+      if (allowance.lt(amount)) {
+        setStatus('Approving...');
+        await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait();
+      }
       setStatus('Committing...');
-      await (await presaleContract.commit(ethers.utils.parseUnits(amt,18))).wait();
+      await (await presaleContract.commit(amount)).wait();
       setStatus('Committed!'); updateProgress();
     };
     document.getElementById('btnClaim').onclick = async () => {
