@@ -10,60 +10,130 @@
   <script src="https://unpkg.com/web3modal@1.9.8/dist/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
   <style>
-    :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background: var(--lavender); font-family: var(--font); margin:0; padding:0; display:flex; justify-content:center; }
+    :root {
+      --lavender: #e6e6fa;
+      --lavender-dark: #b39ddb;
+      --lavender-accent: #9575cd;
+      --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background: var(--lavender);
+      font-family: var(--font);
+      margin:0; padding:0;
+      display:flex; justify-content:center;
+    }
     main { width:100%; max-width:480px; padding:2rem; }
-    .card { background:white; border-radius:1rem; padding:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:1.5rem; }
-    .progress-container { background:#f3f3f3; border-radius:.5rem; overflow:hidden; margin-top:.5rem; }
-    .progress-bar { height:1rem; width:0%; background:var(--lavender-accent); transition:width .5s ease; }
-    input,button { width:100%; padding:.75rem; margin-top:.75rem; font-size:1rem; border:1px solid #ccc; border-radius:.5rem; box-sizing:border-box; }
-    button { background:var(--lavender-accent); color:white; border:none; cursor:pointer; transition:background .3s; }
+    .card {
+      background:white;
+      border-radius:1rem;
+      padding:1.5rem;
+      box-shadow:0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom:1.5rem;
+    }
+    .progress-container {
+      background:#f3f3f3;
+      border-radius:.5rem;
+      overflow:hidden;
+      margin-top:.5rem;
+    }
+    .progress-bar {
+      height:1rem;
+      width:0%;
+      background:var(--lavender-accent);
+      transition:width .5s ease;
+    }
+    input,button {
+      width:100%;
+      padding:.75rem;
+      margin-top:.75rem;
+      font-size:1rem;
+      border:1px solid #ccc;
+      border-radius:.5rem;
+      box-sizing:border-box;
+    }
+    button {
+      background:var(--lavender-accent);
+      color:white;
+      border:none;
+      cursor:pointer;
+      transition:background .3s;
+    }
     button:disabled { background:#ccc; cursor:not-allowed; }
     button:hover:not(:disabled) { background:var(--lavender-dark); }
     #status { text-align:center; margin-top:1rem; font-size:.9rem; color:#555; }
+    #disconnect-btn {
+      background:#dc3545;
+      margin-top:.5rem;
+    }
+    #disconnect-btn:hover { background:#c82333; }
   </style>
 </head>
 <body>
   <main>
     <div class="card" id="connectCard">
       <button id="btnConnect">Connect Wallet</button>
+      <button id="btnDisconnect" style="display:none;">Disconnect Wallet</button>
       <p id="walletAddress">Not connected</p>
     </div>
-    <div class="card" id="progressCard">
+
+    <div class="card" id="progressCard" style="display:none;">
       <h3>Sale Progress</h3>
       <div class="progress-container">
         <div class="progress-bar" id="progressBar"></div>
       </div>
       <p id="progressText">0 / 100% sold</p>
     </div>
-    <div class="card" id="commitCard">
+
+    <div class="card" id="commitCard" style="display:none;">
       <label for="commitAmount">Amount of Pillnads to commit</label>
       <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
       <button id="btnCommit">Commit</button>
     </div>
-    <div class="card">
+
+    <div class="card" id="actionsCard" style="display:none;">
       <button id="btnClaim">Claim Tokens</button>
       <button id="btnRefund">Refund</button>
     </div>
+
     <p id="status"></p>
   </main>
 
   <script>
     const { ethers } = window.ethers;
     const WalletConnectProvider = window.WalletConnectProvider.default;
+
     const providerOptions = {
       walletconnect: {
         package: WalletConnectProvider,
-        options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' } }
+        options: {
+          rpc: { 10143: 'https://testnet-rpc.monad.xyz' },
+          chainId: 10143
+        }
       }
     };
-    const web3Modal = new window.Web3Modal.default({ cacheProvider: false, providerOptions });
+
+    // cacheProvider:true để tự động reconnect nếu user đã connect trước đó
+    const web3Modal = new window.Web3Modal.default({
+      cacheProvider: true,
+      providerOptions
+    });
 
     const chainId = 10143;
     const presaleAddress = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
-    const TOKENS_FOR_SALE = ethers.BigNumber.from('1000000').mul(ethers.BigNumber.from('10').pow(18));
-    const abi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
+    const TOKENS_FOR_SALE = ethers.BigNumber.from('1000000')
+                              .mul(ethers.BigNumber.from('10').pow(18));
+
+    const presaleAbi = [
+      'function commit(uint256)',
+      'function claim()',
+      'function refuse()',
+      'function totalCommitted() view returns (uint256)'
+    ];
+    const erc20Abi = [
+      'function approve(address,uint256)',
+      'function allowance(address,address) view returns (uint256)'
+    ];
 
     let provider, signer, presaleContract;
 
@@ -72,55 +142,94 @@
         const instance = await web3Modal.connect();
         provider = new ethers.providers.Web3Provider(instance);
         const net = await provider.getNetwork();
-        if (net.chainId !== chainId) throw new Error('Wrong network');
+        if (net.chainId !== chainId) {
+          throw new Error(`Wrong network (got ${net.chainId})`);
+        }
         signer = provider.getSigner();
         const address = await signer.getAddress();
+
+        // Hiển thị UI sau khi connect
         document.getElementById('walletAddress').innerText = address;
-        document.getElementById('connectCard').style.display = 'none';
-        presaleContract = new ethers.Contract(presaleAddress, abi, signer);
-        updateProgress();
+        document.getElementById('btnConnect').style.display = 'none';
+        document.getElementById('btnDisconnect').style.display = 'block';
+        document.getElementById('progressCard').style.display = 'block';
+        document.getElementById('commitCard').style.display = 'block';
+        document.getElementById('actionsCard').style.display = 'block';
+
+        presaleContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
+        await updateProgress();
+
+        // Lắng nghe sự kiện disconnection
+        instance.on && instance.on('disconnect', () => disconnect());
       } catch (e) {
         console.error(e);
         setStatus('Connection failed: ' + e.message);
       }
     }
 
+    async function disconnect() {
+      await web3Modal.clearCachedProvider();
+      // reload để reset state
+      window.location.reload();
+    }
+
     async function updateProgress() {
       const committed = await presaleContract.totalCommitted();
       const pct = committed.mul(100).div(TOKENS_FOR_SALE);
       document.getElementById('progressBar').style.width = pct + '%';
-      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed,18)}/${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
-      if (pct.gte(100)) document.getElementById('commitCard').remove();
+      document.getElementById('progressText').innerText =
+        `${ethers.utils.formatUnits(committed,18)} / ` +
+        `${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} ` +
+        `(${pct}%)`;
+      if (pct.gte(100)) {
+        document.getElementById('commitCard').remove();
+      }
     }
 
-    function setStatus(msg){ document.getElementById('status').innerText = msg; }
+    function setStatus(msg) {
+      document.getElementById('status').innerText = msg;
+    }
 
     document.getElementById('btnConnect').onclick = connect;
+    document.getElementById('btnDisconnect').onclick = disconnect;
+
     document.getElementById('btnCommit').onclick = async () => {
       const amt = document.getElementById('commitAmount').value;
       if (!amt) return;
       setStatus('Checking allowance...');
-      const token = new ethers.Contract(pillnadsAddress, ['function approve(address,uint256)','function allowance(address,address) view returns (uint256)'], signer);
-      const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
+      const token = new ethers.Contract(pillnadsAddress, erc20Abi, signer);
       const amount = ethers.utils.parseUnits(amt,18);
+      const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
+
       if (allowance.lt(amount)) {
         setStatus('Approving...');
         await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait();
       }
       setStatus('Committing...');
       await (await presaleContract.commit(amount)).wait();
-      setStatus('Committed!'); updateProgress();
+      setStatus('Committed!');
+      await updateProgress();
     };
+
     document.getElementById('btnClaim').onclick = async () => {
       setStatus('Claiming...');
       await (await presaleContract.claim()).wait();
       setStatus('Claimed!');
     };
+
     document.getElementById('btnRefund').onclick = async () => {
       setStatus('Refunding...');
       await (await presaleContract.refuse()).wait();
-      setStatus('Refunded!'); updateProgress();
+      setStatus('Refunded!');
+      await updateProgress();
     };
+
+    // Nếu đã cacheProvider thì tự động connect khi load trang
+    window.addEventListener('load', () => {
+      if (web3Modal.cachedProvider) {
+        connect();
+      }
+    });
   </script>
 </body>
 </html>
