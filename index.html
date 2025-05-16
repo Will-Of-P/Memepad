@@ -6,8 +6,8 @@
   <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect Provider v1 UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js"></script>
+  <!-- WalletConnect v2 Provider UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@2.4.7/dist/umd/index.min.js"></script>
   <style>
     :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background: var(--lavender); font-family: var(--font); margin:0; padding:0; display:flex; justify-content:center; }
@@ -25,14 +25,12 @@
 <body>
   <main>
     <div class="card" id="connectCard">
-      <button id="btnConnect">Connect via WalletConnect</button>
+      <button id="btnConnect">Connect Wallet (WC v2)</button>
       <p id="walletAddress">Not connected</p>
     </div>
     <div class="card" id="progressCard">
       <h3>Sale Progress</h3>
-      <div class="progress-container">
-        <div class="progress-bar" id="progressBar"></div>
-      </div>
+      <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
       <p id="progressText">0 / 100% sold</p>
     </div>
     <div class="card" id="commitCard">
@@ -49,66 +47,65 @@
 
   <script>
     const { ethers } = window.ethers;
-    const WalletConnectProvider = window.WalletConnectProvider.default;
-    const RPC_URL = 'https://testnet-rpc.monad.xyz';
+    const WCProvider = window.WalletConnectProvider; // v2 UMD export
     const CHAIN_ID = 10143;
-    const presaleAddress = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
-    const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
+    const RPC_URL  = 'https://testnet-rpc.monad.xyz';
+    const PRESALE  = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
+    const PILL     = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
     const TOKENS_FOR_SALE = ethers.BigNumber.from('1000000').mul(ethers.BigNumber.from('10').pow(18));
-    const abi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
+    const ABI = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
 
-    let provider, signer, presaleContract;
+    let provider, signer, contract;
 
     async function connect() {
       try {
-        // Always use WalletConnect to show QR code
-        const wcProvider = new WalletConnectProvider({ rpc: { [CHAIN_ID]: RPC_URL } });
-        await wcProvider.enable(); // displays QR if needed
-        provider = new ethers.providers.Web3Provider(wcProvider);
-        const net = await provider.getNetwork();
-        if (net.chainId !== CHAIN_ID) throw new Error('Wrong network');
+        const wc = new WCProvider({
+          projectId: '15d71c72f9cbc5762f2c26d269514474',
+          chains: [CHAIN_ID],
+          rpcMap: { [CHAIN_ID]: RPC_URL }
+        });
+        await wc.init();
+        const accounts = await wc.connect();
+        provider = new ethers.providers.Web3Provider(wc);
         signer = provider.getSigner();
-        const address = await signer.getAddress();
-        document.getElementById('walletAddress').innerText = address;
+        const addr = accounts[0];
+        document.getElementById('walletAddress').innerText = addr;
         document.getElementById('connectCard').style.display = 'none';
-        presaleContract = new ethers.Contract(presaleAddress, abi, signer);
-        // enable buttons
+        contract = new ethers.Contract(PRESALE, ABI, signer);
         ['btnCommit','btnClaim','btnRefund'].forEach(id => document.getElementById(id).disabled = false);
         updateProgress();
       } catch (e) {
         console.error(e);
-        setStatus('Connect failed: ' + e.message);
+        setStatus('Connect failed: '+e.message);
       }
     }
 
     async function updateProgress() {
-      const committed = await presaleContract.totalCommitted();
-      const pct = committed.mul(100).div(TOKENS_FOR_SALE);
+      const c = await contract.totalCommitted();
+      const pct = c.mul(100).div(TOKENS_FOR_SALE);
       document.getElementById('progressBar').style.width = pct + '%';
-      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed,18)}/${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
+      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(c,18)}/${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
       if (pct.gte(100)) document.getElementById('commitCard').remove();
     }
 
-    function setStatus(msg){ document.getElementById('status').innerText = msg; }
+    function setStatus(m){ document.getElementById('status').innerText = m; }
 
     document.getElementById('btnConnect').onclick = connect;
     document.getElementById('btnCommit').onclick = async () => {
       const amt = document.getElementById('commitAmount').value;
       if (!amt) return;
       setStatus('Checking allowance...');
-      const token = new ethers.Contract(pillnadsAddress, ['function approve(address,uint256)','function allowance(address,address) view returns (uint256)'], signer);
-      const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
+      const token = new ethers.Contract(PILL, ['function allowance(address,address) view returns (uint256)','function approve(address,uint256)'], signer);
+      const allowance = await token.allowance(await signer.getAddress(), PRESALE);
       const amount = ethers.utils.parseUnits(amt,18);
       if (allowance.lt(amount)) {
-        setStatus('Approving...');
-        await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait();
+        setStatus('Approving...'); await (await token.approve(PRESALE, ethers.constants.MaxUint256)).wait();
       }
-      setStatus('Committing...');
-      await (await presaleContract.commit(amount)).wait();
+      setStatus('Committing...'); await (await contract.commit(amount)).wait();
       setStatus('Committed!'); updateProgress();
     };
-    document.getElementById('btnClaim').onclick = async () => { setStatus('Claiming...'); await (await presaleContract.claim()).wait(); setStatus('Claimed!'); };
-    document.getElementById('btnRefund').onclick = async () => { setStatus('Refunding...'); await (await presaleContract.refuse()).wait(); setStatus('Refunded!'); updateProgress(); };
+    document.getElementById('btnClaim').onclick = async () => { setStatus('Claiming...'); await (await contract.claim()).wait(); setStatus('Claimed!'); };
+    document.getElementById('btnRefund').onclick = async () => { setStatus('Refunding...'); await (await contract.refuse()).wait(); setStatus('Refunded!'); updateProgress(); };
   </script>
 </body>
 </html>
