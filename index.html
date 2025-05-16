@@ -6,8 +6,8 @@
   <title>Pillnads Presale</title>
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <!-- WalletConnect v2 Provider UMD -->
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@2.4.7/dist/umd/index.min.js"></script>
+  <!-- WalletConnect v1 Provider UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
   <style>
     :root { --lavender: #e6e6fa; --lavender-dark: #b39ddb; --lavender-accent: #9575cd; --font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background: var(--lavender); font-family: var(--font); margin:0; padding:0; display:flex; justify-content:center; }
@@ -25,7 +25,7 @@
 <body>
   <main>
     <div class="card" id="connectCard">
-      <button id="btnConnect">Connect Wallet (WC v2)</button>
+      <button id="btnConnect">Connect Wallet</button>
       <p id="walletAddress">Not connected</p>
     </div>
     <div class="card" id="progressCard">
@@ -47,7 +47,7 @@
 
   <script>
     const { ethers } = window.ethers;
-    const WCProvider = window.WalletConnectProvider; // v2 UMD export
+    const WalletConnectProvider = window.WalletConnectProvider.default;
     const CHAIN_ID = 10143;
     const RPC_URL  = 'https://testnet-rpc.monad.xyz';
     const PRESALE  = '0xD39eaC4ae27307D29E219141C2D516375Ea431B4';
@@ -59,24 +59,26 @@
 
     async function connect() {
       try {
-        const wc = new WCProvider({
-          projectId: '15d71c72f9cbc5762f2c26d269514474',
-          chains: [CHAIN_ID],
-          rpcMap: { [CHAIN_ID]: RPC_URL }
+        // Always use WalletConnect v1 with deep link support for injected wallets
+        const wcProvider = new WalletConnectProvider({
+          rpc: { [CHAIN_ID]: RPC_URL },
+          chainId: CHAIN_ID,
+          qrcode: false,
+          mobileLinks: ['metamask', 'trust'], // deeplink for injected wallets
         });
-        await wc.init();
-        const accounts = await wc.connect();
-        provider = new ethers.providers.Web3Provider(wc);
+        // trigger connection
+        await wcProvider.enable();
+        provider = new ethers.providers.Web3Provider(wcProvider);
         signer = provider.getSigner();
-        const addr = accounts[0];
-        document.getElementById('walletAddress').innerText = addr;
+        const address = await signer.getAddress();
+        document.getElementById('walletAddress').innerText = address;
         document.getElementById('connectCard').style.display = 'none';
         contract = new ethers.Contract(PRESALE, ABI, signer);
         ['btnCommit','btnClaim','btnRefund'].forEach(id => document.getElementById(id).disabled = false);
         updateProgress();
       } catch (e) {
         console.error(e);
-        setStatus('Connect failed: '+e.message);
+        setStatus('Connect failed: ' + e.message);
       }
     }
 
@@ -92,15 +94,12 @@
 
     document.getElementById('btnConnect').onclick = connect;
     document.getElementById('btnCommit').onclick = async () => {
-      const amt = document.getElementById('commitAmount').value;
-      if (!amt) return;
+      const amt = document.getElementById('commitAmount').value; if (!amt) return;
       setStatus('Checking allowance...');
       const token = new ethers.Contract(PILL, ['function allowance(address,address) view returns (uint256)','function approve(address,uint256)'], signer);
       const allowance = await token.allowance(await signer.getAddress(), PRESALE);
       const amount = ethers.utils.parseUnits(amt,18);
-      if (allowance.lt(amount)) {
-        setStatus('Approving...'); await (await token.approve(PRESALE, ethers.constants.MaxUint256)).wait();
-      }
+      if (allowance.lt(amount)) { setStatus('Approving...'); await (await token.approve(PRESALE, ethers.constants.MaxUint256)).wait(); }
       setStatus('Committing...'); await (await contract.commit(amount)).wait();
       setStatus('Committed!'); updateProgress();
     };
