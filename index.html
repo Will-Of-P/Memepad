@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <!-- Ethers.js v5 UMD -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <!-- Web3Modal & WalletConnect Provider -->
@@ -22,90 +21,24 @@
       --large-font: 1.25rem;
     }
     *, *::before, *::after { box-sizing: border-box; }
-    body {
-      background: var(--bg-color);
-      font-family: var(--font-family);
-      margin: 0;
-      padding: 2rem 1rem;
-      display: flex;
-      justify-content: center;
-    }
-    main {
-      max-width: 500px;
-      width: 100%;
-    }
-    .card {
-      background: #fff;
-      border-radius: var(--radius);
-      padding: var(--card-padding);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-      margin-bottom: 1.5rem;
-      transition: transform var(--transition);
-    }
+    body { background: var(--bg-color); font-family: var(--font-family); margin: 0; padding: 2rem 1rem; display: flex; justify-content: center; }
+    main { max-width: 500px; width: 100%; }
+    .card { background: #fff; border-radius: var(--radius); padding: var(--card-padding); box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 1.5rem; transition: transform var(--transition); }
     .card:hover { transform: translateY(-5px); }
-    .token-info {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .token-info img {
-      width: 4rem;
-      height: 4rem;
-      border-radius: 50%;
-      border: 2px solid var(--primary);
-    }
-    .token-details {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      font-size: var(--base-font);
-    }
+    .token-info { display: flex; align-items: center; gap: 1rem; }
+    .token-info img { width: 4rem; height: 4rem; border-radius: 50%; border: 2px solid var(--primary); }
+    .token-details { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--base-font); }
     .token-details .name { font-size: var(--large-font); font-weight: bold; color: var(--primary); margin: 0; }
     .token-details .info { color: #555; margin: 0; }
     .token-details .address { font-size: 0.85rem; color: #777; word-break: break-all; margin: 0; }
-    .link-button {
-      display: inline-block;
-      margin-top: 0.75rem;
-      text-decoration: none;
-      background: var(--primary);
-      color: #fff;
-      padding: 0.6rem 1rem;
-      border-radius: 0.5rem;
-      font-size: var(--base-font);
-      transition: background var(--transition);
-    }
+    .link-button { display: inline-block; margin-top: 0.75rem; text-decoration: none; background: var(--primary); color: #fff; padding: 0.6rem 1rem; border-radius: 0.5rem; font-size: var(--base-font); transition: background var(--transition); }
     .link-button:hover { background: var(--primary-dark); }
     h3 { font-size: var(--large-font); margin: 0 0 0.5rem; color: #444; }
-    .progress-container {
-      background: #eee;
-      border-radius: 0.5rem;
-      overflow: hidden;
-      height: 0.8rem;
-    }
-    .progress-bar {
-      width: 0;
-      height: 100%;
-      background: var(--primary);
-      transition: width 0.5s ease;
-    }
+    .progress-container { background: #eee; border-radius: 0.5rem; overflow: hidden; height: 0.8rem; }
+    .progress-bar { width: 0; height: 100%; background: var(--primary); transition: width 0.5s ease; }
     label { font-size: var(--base-font); font-weight: 500; color: #333; }
-    input, button {
-      width: 100%;
-      padding: 0.75rem;
-      margin-top: 0.5rem;
-      font-size: var(--base-font);
-      border: 1px solid #ccc;
-      border-radius: 0.5rem;
-    }
-    button {
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      cursor: pointer;
-      transition: background var(--transition);
-      font-size: var(--base-font);
-      font-weight: 600;
-    }
+    input, button { width: 100%; padding: 0.75rem; margin-top: 0.5rem; font-size: var(--base-font); border: 1px solid #ccc; border-radius: 0.5rem; }
+    button { background: var(--primary); color: #fff; border: none; cursor: pointer; transition: background var(--transition); font-size: var(--base-font); font-weight: 600; }
     button:disabled { background: #ccc; cursor: not-allowed; }
     button:hover:not(:disabled) { background: var(--primary-dark); }
     #status { text-align: center; color: #666; font-size: 0.9rem; margin-top: 1rem; }
@@ -113,8 +46,6 @@
 </head>
 <body>
   <main>
-
-    <!-- Token Info -->
     <div class="card token-info">
       <img src="https://raw.githubusercontent.com/Will-Of-P/Memepad/refs/heads/main/photo_2025-05-27_17-00-37.jpg" alt="Token Logo" />
       <div class="token-details">
@@ -125,118 +56,91 @@
         <a href="https://testnet.nad.fun/tokens/0x237C0d4C10e13B8f63DbD341e2220BF71F97Eee5" target="_blank" class="link-button">Trade $MEOW</a>
       </div>
     </div>
-
-    <!-- Wallet Connection -->
     <div class="card" id="connectCard">
       <button id="btnConnect">Connect Wallet</button>
       <button id="btnDisconnect" style="display:none;">Disconnect</button>
       <p id="walletAddress">Not connected</p>
     </div>
-
-    <!-- Sale Progress -->
     <div class="card" id="progressCard" style="display:none;">
       <h3>Sale Progress</h3>
       <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
       <p id="progressText">0 / 100% sold</p>
     </div>
-
-    <!-- Commit Section -->
     <div class="card" id="commitCard" style="display:none;">
-      <label for="commitAmount">Commit PillNADS</label>
+      <label for="commitAmount">Commit $PILLNADS</label>
       <input type="number" id="commitAmount" placeholder="e.g. 100" min="1" />
       <button id="btnCommit">Commit</button>
-      <a href="https://testnet.nad.fun/tokens/0x9569ad4B353D4811064ad9970B198fcb914428D5" target="_blank" class="link-button">Buy PillNADS</a>
+      <a href="https://testnet.nad.fun/tokens/0x9569ad4B353D4811064ad9970B198fcb914428D5" target="_blank" class="link-button">Buy $PILLNADS</a>
     </div>
-
-    <!-- Actions -->
     <div class="card" id="actionsCard" style="display:none;">
       <button id="btnClaim">Claim Tokens</button>
       <button id="btnRefund">Refund</button>
     </div>
-
     <p id="status"></p>
   </main>
-
   <script>
     const { ethers } = window.ethers;
     const WalletConnectProvider = window.WalletConnectProvider.default;
-    const web3Modal = new window.Web3Modal.default({
-      cacheProvider: true,
-      providerOptions: { walletconnect: { package: WalletConnectProvider, options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' }, chainId: 10143 } } }
-    });
-
+    const web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions: { walletconnect: { package: WalletConnectProvider, options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' }, chainId: 10143 } } } });
     const chainId = 10143;
-    const chainHex = '0x27E7';
+    const chainParams = {
+      chainId: '0x27E7',
+      chainName: 'Monad Testnet',
+      nativeCurrency: { name: 'NAD', symbol: 'NAD', decimals: 18 },
+      rpcUrls: ['https://testnet-rpc.monad.xyz'],
+      blockExplorerUrls: ['https://explorer.monad.xyz']
+    };
     const presaleAddress = '0x9A17859047D9d565993f2976A4bfd04698FC9d64';
     const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
-    const TOKENS_FOR_SALE = ethers.BigNumber.from('500000').mul(ethers.BigNumber.from('10').pow(18));
+    const TOKENS_FOR_SALE = ethers.BigNumber.from('6000000').mul(ethers.BigNumber.from('10').pow(18));
     const presaleAbi = ['function commit(uint256)','function claim()','function refuse()','function totalCommitted() view returns (uint256)'];
     const erc20Abi = ['function approve(address,uint256)','function allowance(address,address) view returns (uint256)'];
-
     let provider, signer, presaleContract;
-
-    async function ensureMonadNetwork(providerObj) {
-      const net = await providerObj.request({ method: 'eth_chainId' });
-      if (parseInt(net,16) !== chainId) {
-        await providerObj.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainHex }] });
+    async function ensureNetwork(providerObj) {
+      try {
+        const net = await providerObj.request({ method: 'eth_chainId' });
+        if (net !== chainParams.chainId) await providerObj.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: chainParams.chainId }] });
+      } catch (err) {
+        if (err.code === 4902) await providerObj.request({ method: 'wallet_addEthereumChain', params: [chainParams] });
+        else throw err;
       }
     }
-
     async function connect() {
+      let instance;
       if (window.ethereum) {
-        try {
-          await ensureMonadNetwork(window.ethereum);
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-          provider = new ethers.providers.Web3Provider(window.ethereum);
-          signer = provider.getSigner();
-          onConnectSuccess(await signer.getAddress());
-          return;
-        } catch {};
+        try { await ensureNetwork(window.ethereum); await window.ethereum.request({ method: 'eth_requestAccounts' }); instance = window.ethereum; }
+        catch { /* fallback */ }
       }
-      const instance = await web3Modal.connect();
-      await ensureMonadNetwork(instance);
+      if (!instance) instance = await web3Modal.connect();
+      await ensureNetwork(instance);
       provider = new ethers.providers.Web3Provider(instance);
       signer = provider.getSigner();
       onConnectSuccess(await signer.getAddress());
     }
-
     function onConnectSuccess(address) {
       document.getElementById('walletAddress').innerText = address;
       document.getElementById('btnConnect').style.display = 'none';
       document.getElementById('btnDisconnect').style.display = 'block';
-      ['progressCard','commitCard','actionsCard'].forEach(id => document.getElementById(id).style.display = 'block');
+      ['progressCard','commitCard','actionsCard'].forEach(id=>document.getElementById(id).style.display='block');
       presaleContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
       updateProgress();
-      if (provider.provider.on) provider.provider.on('disconnect', disconnect);
+      if (provider.provider.on) provider.provider.on('disconnect',disconnect);
     }
-
     async function disconnect() { await web3Modal.clearCachedProvider(); window.location.reload(); }
-
     async function updateProgress() {
       const committed = await presaleContract.totalCommitted();
       const pct = committed.mul(100).div(TOKENS_FOR_SALE);
-      document.getElementById('progressBar').style.width = pct + '%';
-      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed,18)} / ${ethers.utils.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
+      document.getElementById('progressBar').style.width = pct+'%';
+      document.getElementById('progressText').innerText = `${ethers.utils.formatUnits(committed,18)} / ${ethers.adapters.formatUnits(TOKENS_FOR_SALE,18)} (${pct}%)`;
       if (pct.gte(100)) document.getElementById('commitCard').remove();
     }
-
-    document.getElementById('btnConnect').onclick = connect;
-    document.getElementById('btnDisconnect').onclick = disconnect;
-    document.getElementById('btnCommit').onclick = async () => {
-      const amt = document.getElementById('commitAmount').value;
-      if (!amt) return;
-      setStatus('Checking allowance...');
-      const token = new ethers.Contract(pillnadsAddress, erc20Abi, signer);
-      const amount = ethers.utils.parseUnits(amt,18);
-      const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
-      if (allowance.lt(amount)) { await (await token.approve(presaleAddress, ethers.constants.MaxUint256)).wait(); }
-      setStatus('Committing...'); await (await presaleContract.commit(amount)).wait(); setStatus('Committed!'); updateProgress();
-    };
-    document.getElementById('btnClaim').onclick = async () => { await presaleContract.claim().then(() => setStatus('Claimed!')); };
-    document.getElementById('btnRefund').onclick = async () => { await presaleContract.refuse().then(() => setStatus('Refunded!')).then(updateProgress); };
-
-    function setStatus(msg) { document.getElementById('status').innerText = msg; }
-    window.addEventListener('load', () => { if (web3Modal.cachedProvider) connect(); });
+    document.getElementById('btnConnect').onclick=connect;
+    document.getElementById('btnDisconnect').onclick=disconnect;
+    document.getElementById('btnCommit').onclick=async()=>{const amt=document.getElementById('commitAmount').value;if(!amt)return;setStatus('Checking allowance...');const token=new ethers.Contract(pillnadsAddress,erc20Abi,signer);const amount=ethers.utils.parseUnits(amt,18);const allowance=await token.allowance(await signer.getAddress(),presaleAddress);if(allowance.lt(amount)){await(token.approve(presaleAddress,ethers.constants.MaxUint256)).then(tx=>tx.wait());}setStatus('Committing...');await(presaleContract.commit(amount)).then(tx=>tx.wait());setStatus('Committed!');updateProgress();};
+    document.getElementById('btnClaim').onclick=async()=>{await presaleContract.claim().then(()=>setStatus('Claimed!'));};
+    document.getElementById('btnRefund').onclick=async()=>{await presaleContract.refuse().then(()=>setStatus('Refunded!')).then(updateProgress);};
+    function setStatus(msg){document.getElementById('status').innerText=msg;}
+    window.addEventListener('load',()=>{if(web3Modal.cachedProvider)connect();});
   </script>
 </body>
 </html>
