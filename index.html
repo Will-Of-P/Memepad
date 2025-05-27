@@ -83,8 +83,8 @@
     const WalletConnectProvider = window.WalletConnectProvider.default;
     const web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions: { walletconnect: { package: WalletConnectProvider, options: { rpc: { 10143: 'https://testnet-rpc.monad.xyz' }, chainId: 10143 } } } });
     const chainId = 10143;
-    const chainParams = {
-      chainId: '0x27E7',
+    const const chainParams = {
+      chainId: '0x279F', // 10143 in hex
       chainName: 'Monad Testnet',
       nativeCurrency: { name: 'Monad Token', symbol: 'MON', decimals: 18 },
       rpcUrls: ['https://testnet-rpc.monad.xyz'],
