@@ -68,7 +68,7 @@
       <div class="progress-container">
         <div class="progress-bar" id="progressBar"></div>
       </div>
-      <p id="progressText">0 / 70000000 (0%) sold</p>
+      <p id="progressText">0 PILLNADS raised / 1,155,000 (0% of target)</p>
     </div>
 
     <div class="card" id="commitCard">
@@ -113,20 +113,22 @@
     const presaleAddress    = '0xbefBD0a75c66FAa3bA9BED72f7335c2bbb93B431';
     const pillnadsAddress   = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
 
-    // 0.0165 PILLNADS per MEOW → 0.0165 × 10^18 (wei)
+    // 0.0165 PILLNADS per 1 MEOW → 0.0165 × 10^18 (wei)
     const TOKEN_PRICE       = ethers.BigNumber.from('16500000000000000');
     // 70,000,000 MEOW → 70e6 × 10^18
     const TOKENS_FOR_SALE   = ethers.BigNumber.from('70000000').mul(ethers.constants.WeiPerEther);
+    // Tổng target PILLNADS raise = 1,155,000 → 1,155,000 × 10^18
+    const TARGET_RAISE      = ethers.BigNumber.from('1155000').mul(ethers.constants.WeiPerEther);
 
     const presaleAbi = [
       'function commit(uint256)',
       'function claim()',
-      'function refuse()',
-      'function totalCommitted() view returns (uint256)'
+      'function refuse()'
     ];
     const erc20Abi = [
       'function approve(address,uint256)',
       'function allowance(address,address) view returns (uint256)',
+      'function balanceOf(address) view returns (uint256)',
       'function transfer(address,uint256) returns (bool)',
       'function transferFrom(address,address,uint256) returns (bool)'
     ];
@@ -190,6 +192,7 @@
 
       presaleContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
 
+      // Update lần đầu và lên lịch mỗi 15 giây
       updateProgress();
       updateInterval = setInterval(updateProgress, 15000);
 
@@ -206,29 +209,35 @@
 
     async function updateProgress() {
       try {
-        const committed = await presaleContract.totalCommitted();
-        const meowSold = committed
+        // 1) Lấy số dư PILLNADS contract đang giữ
+        const token = new ethers.Contract(pillnadsAddress, erc20Abi, provider);
+        const raised = await token.balanceOf(presaleAddress); // BigNumber (wei)
+
+        // 2) Tính MEOW đã bán = raised × 10^18 / TOKEN_PRICE
+        const meowSold = raised
           .mul(ethers.constants.WeiPerEther)
           .div(TOKEN_PRICE);
-        const soldFmt  = ethers.utils.formatUnits(meowSold, 18);
-        const totalFmt = ethers.utils.formatUnits(TOKENS_FOR_SALE, 18);
-        const pct = meowSold
-          .mul(100)
-          .div(TOKENS_FOR_SALE);
 
-        let pctNum = pct;
-        if (pct.gt(100)) {
+        // 3) Format để hiển thị
+        const raisedFmt  = ethers.utils.formatUnits(raised, 18);      // PILLNADS đã raise
+        const soldFmt    = ethers.utils.formatUnits(meowSold, 18);    // MEOW đã bán
+        const targetFmt  = ethers.utils.formatUnits(TARGET_RAISE, 18); // 1,155,000
+
+        // 4) Tính phần trăm PILLNADS so với target
+        const pctRaise = raised
+          .mul(100)
+          .div(TARGET_RAISE);
+
+        let pctNum = pctRaise;
+        if (pctRaise.gt(100)) {
           pctNum = ethers.BigNumber.from(100);
         }
 
+        // 5) Cập nhật thanh progress (dựa trên pillnads-raised %)
         document.getElementById('progressBar').style.width = pctNum.toString() + '%';
         document.getElementById('progressText').innerText =
-          `${soldFmt} / ${totalFmt} (${pct.toString()}%)`;
+          `${raisedFmt} / ${targetFmt} (${pctRaise.toString()}%) PILLNADS raised`;
 
-        if (pct.gte(100)) {
-          const commitCard = document.getElementById('commitCard');
-          if (commitCard) commitCard.remove();
-        }
       } catch (err) {
         console.error('Failed to update progress:', err);
         setStatus('Error updating progress');
@@ -244,12 +253,12 @@
 
       try {
         setStatus('Checking allowance...');
-        const token = new ethers.Contract(pillnadsAddress, erc20Abi, signer);
+        const tokenWrite = new ethers.Contract(pillnadsAddress, erc20Abi, signer);
         const amount = ethers.utils.parseUnits(amt, 18);
-        const allowance = await token.allowance(await signer.getAddress(), presaleAddress);
+        const allowance = await tokenWrite.allowance(await signer.getAddress(), presaleAddress);
         if (allowance.lt(amount)) {
           setStatus('Approving Pillnads…');
-          const tx = await token.approve(presaleAddress, ethers.constants.MaxUint256);
+          const tx = await tokenWrite.approve(presaleAddress, ethers.constants.MaxUint256);
           await tx.wait();
         }
 
