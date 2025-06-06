@@ -110,13 +110,15 @@
       blockExplorerUrls: ['https://explorer.monad.xyz']
     };
 
-    const presaleAddress    = '0xbefBD0a75c66FAa3bA9BED72f7335c2bbb93B431';
-    const pillnadsAddress   = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
+    // Địa chỉ presale contract (MEOW)
+    const presaleAddress  = '0xbefBD0a75c66FAa3bA9BED72f7335c2bbb93B431';
+    // Địa chỉ Pillnads (PILLNADS)
+    const pillnadsAddress = '0x9569ad4B353D4811064ad9970B198fcb914428D5';
 
-    // 0.0165 PILLNADS per MEOW → 0.0165 × 10^18 (wei)
-    const TOKEN_PRICE       = ethers.BigNumber.from('16500000000000000');
-    // 70,000,000 MEOW, 18 decimals
-    const TOKENS_FOR_SALE   = ethers.BigNumber.from('70000000').mul(ethers.constants.WeiPerEther);
+    // 0.0165 PILLNADS per 1 MEOW → 0.0165 × 10^18 (wei)
+    const TOKEN_PRICE     = ethers.BigNumber.from('16500000000000000');
+    // 70,000,000 MEOW → 70e6 × 10^18
+    const TOKENS_FOR_SALE = ethers.BigNumber.from('70000000').mul(ethers.constants.WeiPerEther);
 
     const presaleAbi = [
       'function commit(uint256)',
@@ -131,8 +133,14 @@
       'function transferFrom(address,address,uint256) returns (bool)'
     ];
 
-    let provider, signer, presaleContract;
+    let provider, signer, presaleWriteContract, presaleReadContract;
     let updateInterval;
+
+    // Dùng JsonRpcProvider riêng để đọc (read-only)
+    const readProvider = new ethers.providers.JsonRpcProvider('https://testnet-rpc.monad.xyz', {
+      name: 'Monad Testnet',
+      chainId: 10143
+    });
 
     async function ensureNetwork(providerObj) {
       try {
@@ -181,7 +189,7 @@
       document.getElementById('walletAddress').innerText = address;
       document.getElementById('btnConnect').style.display = 'none';
       document.getElementById('btnDisconnect').style.display = 'block';
-      document.getElementById('status').innerText = 'Connected: ' + address;
+      setStatus('Connected: ' + address);
 
       // Hiển thị các card
       document.getElementById('tokenInfoCard').style.display = 'flex';
@@ -189,10 +197,13 @@
       document.getElementById('commitCard').style.display = 'block';
       document.getElementById('actionsCard').style.display = 'block';
 
-      presaleContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
-      // Gọi ngay lần đầu
+      // Hợp đồng dùng để ghi (commit, claim, refuse)
+      presaleWriteContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
+      // Hợp đồng chỉ dùng để đọc (totalCommitted)
+      presaleReadContract = new ethers.Contract(presaleAddress, presaleAbi, readProvider);
+
+      // Gọi lần đầu và lên lịch mỗi 15 giây
       updateProgress();
-      // Tự động gọi sau mỗi 15 giây
       updateInterval = setInterval(updateProgress, 15000);
 
       if (provider.provider.on) {
@@ -208,32 +219,48 @@
 
     async function updateProgress() {
       try {
-        const committed = await presaleContract.totalCommitted();
+        // 1) Kiểm tra hợp đồng có tồn tại trên RPC không?
+        const code = await readProvider.getCode(presaleAddress);
+        if (code === '0x') {
+          throw new Error('Presale contract not found on this network.');
+        }
+
+        // 2) Lấy tổng PILLNADS đã commit (view call trên read-only provider)
+        const committed = await presaleReadContract.totalCommitted();
+
+        // 3) Tính MEOW đã bán (wei) = committed × 10^18 / TOKEN_PRICE
         const meowSold = committed
           .mul(ethers.constants.WeiPerEther)
           .div(TOKEN_PRICE);
+
+        // 4) Format ra số thập phân dễ đọc
         const soldFmt  = ethers.utils.formatUnits(meowSold, 18);
         const totalFmt = ethers.utils.formatUnits(TOKENS_FOR_SALE, 18);
+
+        // 5) Tính phần trăm = meowSold / TOKENS_FOR_SALE × 100 (BigNumber)
         const pct = meowSold
           .mul(100)
           .div(TOKENS_FOR_SALE);
 
+        // Giới hạn 100%
         let pctNum = pct;
         if (pct.gt(100)) {
           pctNum = ethers.BigNumber.from(100);
         }
 
+        // 6) Cập nhật thanh progress và text
         document.getElementById('progressBar').style.width = pctNum.toString() + '%';
         document.getElementById('progressText').innerText =
           `${soldFmt} / ${totalFmt} (${pct.toString()}%)`;
 
+        // 7) Nếu đã bán hết (≥100%), ẩn phần commit
         if (pct.gte(100)) {
           const commitCard = document.getElementById('commitCard');
           if (commitCard) commitCard.remove();
         }
       } catch (err) {
         console.error('Failed to update progress:', err);
-        document.getElementById('status').innerText = 'Error updating progress';
+        setStatus(err.message || 'Error updating progress');
       }
     }
 
@@ -256,7 +283,7 @@
         }
 
         setStatus('Committing to sale…');
-        const tx2 = await presaleContract.commit(amount);
+        const tx2 = await presaleWriteContract.commit(amount);
         await tx2.wait();
 
         setStatus('Committed! Updating progress…');
@@ -270,7 +297,7 @@
     document.getElementById('btnClaim').onclick = async () => {
       try {
         setStatus('Submitting claim…');
-        const tx = await presaleContract.claim();
+        const tx = await presaleWriteContract.claim();
         await tx.wait();
         setStatus('Claim successful!');
       } catch (err) {
@@ -282,7 +309,7 @@
     document.getElementById('btnRefund').onclick = async () => {
       try {
         setStatus('Submitting refund…');
-        const tx = await presaleContract.refuse();
+        const tx = await presaleWriteContract.refuse();
         await tx.wait();
         setStatus('Refund successful!');
         await updateProgress();
