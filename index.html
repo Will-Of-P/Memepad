@@ -23,7 +23,7 @@
     *, *::before, *::after { box-sizing: border-box; }
     body { background: var(--bg-color); font-family: var(--font-family); margin: 0; padding: 2rem 1rem; display: flex; justify-content: center; }
     main { max-width: 500px; width: 100%; }
-    .card { background: #fff; border-radius: var(--radius); padding: var(--card-padding); box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 1.5rem; transition: transform var(--transition); }
+    .card { background: #fff; border-radius: var(--radius); padding: var(--card-padding); box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin-bottom: 1.5rem; transition: transform var(--transition); display: none; }
     .card:hover { transform: translateY(-5px); }
     .token-info { display: flex; align-items: center; gap: 1rem; }
     .token-info img { width: 4rem; height: 4rem; border-radius: 50%; border: 2px solid var(--primary); }
@@ -46,7 +46,7 @@
 </head>
 <body>
   <main>
-    <div class="card token-info">
+    <div class="card token-info" id="tokenInfoCard">
       <img src="https://raw.githubusercontent.com/Will-Of-P/Memepad/refs/heads/main/7e360efd-207c-40a2-9a02-94cba34164e4.png" alt="Token Logo">
       <div class="token-details">
         <p class="name">Cat</p>
@@ -57,13 +57,13 @@
       </div>
     </div>
 
-    <div class="card" id="connectCard">
-      <button id="btnConnect" style="display: none;">Connect Wallet</button>
-      <button id="btnDisconnect" style="display: block;">Disconnect</button>
-      <p id="walletAddress">0x93a7c39d7f848A1e9C479C6FE1F8995015Ea2fb9</p>
+    <div class="card" id="connectCard" style="display: block;">
+      <button id="btnConnect">Connect Wallet</button>
+      <button id="btnDisconnect" style="display: none;">Disconnect</button>
+      <p id="walletAddress">Not connected</p>
     </div>
 
-    <div class="card" id="progressCard" style="display: block;">
+    <div class="card" id="progressCard">
       <h3>Sale Progress</h3>
       <div class="progress-container">
         <div class="progress-bar" id="progressBar"></div>
@@ -71,14 +71,14 @@
       <p id="progressText">0 / 70000000 (0%) sold</p>
     </div>
 
-    <div class="card" id="commitCard" style="display: block;">
+    <div class="card" id="commitCard">
       <label for="commitAmount">Commit $PILLNADS</label>
       <input type="number" id="commitAmount" placeholder="e.g. 100" min="1">
       <button id="btnCommit">Commit</button>
       <a href="https://testnet.nad.fun/tokens/0x9569ad4B353D4811064ad9970B198fcb914428D5" target="_blank" class="link-button">Buy $PILLNADS</a>
     </div>
 
-    <div class="card" id="actionsCard" style="display: block;">
+    <div class="card" id="actionsCard">
       <button id="btnClaim">Claim Tokens</button>
       <button id="btnRefund">Refund</button>
     </div>
@@ -183,9 +183,11 @@
       document.getElementById('btnDisconnect').style.display = 'block';
       document.getElementById('status').innerText = 'Connected: ' + address;
 
-      ['progressCard', 'commitCard', 'actionsCard'].forEach(id => {
-        document.getElementById(id).style.display = 'block';
-      });
+      // Hiển thị các card
+      document.getElementById('tokenInfoCard').style.display = 'flex';
+      document.getElementById('progressCard').style.display = 'block';
+      document.getElementById('commitCard').style.display = 'block';
+      document.getElementById('actionsCard').style.display = 'block';
 
       presaleContract = new ethers.Contract(presaleAddress, presaleAbi, signer);
       // Gọi ngay lần đầu
@@ -206,35 +208,25 @@
 
     async function updateProgress() {
       try {
-        // 1) Lấy tổng PILLNADS đã commit (BigNumber, 18 decimals)
         const committed = await presaleContract.totalCommitted();
-
-        // 2) Tính meowSold (wei MEOW) = committed × 10^18 / TOKEN_PRICE
         const meowSold = committed
           .mul(ethers.constants.WeiPerEther)
           .div(TOKEN_PRICE);
-
-        // 3) Format ra text “x.y MEOW”
         const soldFmt  = ethers.utils.formatUnits(meowSold, 18);
         const totalFmt = ethers.utils.formatUnits(TOKENS_FOR_SALE, 18);
-
-        // 4) Tính phần trăm = meowSold / TOKENS_FOR_SALE × 100 (BigNumber)
         const pct = meowSold
           .mul(100)
           .div(TOKENS_FOR_SALE);
 
-        // Giới hạn tối đa 100%
         let pctNum = pct;
         if (pct.gt(100)) {
           pctNum = ethers.BigNumber.from(100);
         }
 
-        // 5) Cập nhật thanh progress bar và text
         document.getElementById('progressBar').style.width = pctNum.toString() + '%';
         document.getElementById('progressText').innerText =
           `${soldFmt} / ${totalFmt} (${pct.toString()}%)`;
 
-        // 6) Nếu đã bán hết (≥100%), ẩn phần commit
         if (pct.gte(100)) {
           const commitCard = document.getElementById('commitCard');
           if (commitCard) commitCard.remove();
